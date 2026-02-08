@@ -3,12 +3,12 @@ package application
 import "fmt"
 
 type VideoTypeError struct {
-	receivedType string
+	ReceivedType string
 }
 
-type YtDlpError struct {
-	stderr    string
-	exitError string
+type DownloaderError struct {
+	Stderr    string
+	ExitError string
 }
 
 type HandlerError struct {
@@ -16,11 +16,11 @@ type HandlerError struct {
 }
 
 func (err VideoTypeError) Error() string {
-	return fmt.Sprintf("Received type %s not found", err.receivedType)
+	return fmt.Sprintf("Received type %s not found", err.ReceivedType)
 }
 
-func (err YtDlpError) Error() string {
-	return fmt.Sprintf("Error while executing yt-dlp: %s\nExit error: %s", err.stderr, err.exitError)
+func (err DownloaderError) Error() string {
+	return fmt.Sprintf("Error while executing yt-dlp: %s\nExit error: %s", err.Stderr, err.ExitError)
 }
 
 func (h HandlerError) Error() string {

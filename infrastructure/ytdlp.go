@@ -1,4 +1,4 @@
-package application
+package infrastructure
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/herobeniyoutube/vk-forwarder/application"
 	u "github.com/herobeniyoutube/vk-forwarder/utils"
 )
 
@@ -49,7 +50,7 @@ func (d *VideoDownloader) Download(groupId int64, videoType string, videoId int,
 
 	err = cmd.Run()
 	if err != nil {
-		err = YtDlpError{bufferErr.String(), err.Error()}
+		err = application.DownloaderError{Stderr: bufferErr.String(), ExitError: err.Error()}
 		log.Println(err.Error())
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func createLink(videoType string, ownerId int, videoId int) (*string, error) {
 	case "short_video":
 		factualType = "clip"
 	default:
-		return nil, VideoTypeError{videoType}
+		return nil, application.VideoTypeError{ReceivedType: videoType}
 	}
 
 	result := fmt.Sprintf("https://vk.com/%s%d_%d", factualType, videoId, ownerId)

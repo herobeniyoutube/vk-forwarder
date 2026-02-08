@@ -21,13 +21,15 @@ func main() {
 	//storage
 	db := postgresql.NewDb(config.DBConnectionString)
 
-	//app
-	downloader := application.NewVideoDownloader()
+	//infrastructure
+	downloader := infrastructure.NewVideoDownloader()
 	tg := infrastructure.NewTgService(config)
 	vk := infrastructure.NewVkService(config)
 
-	//web
+	//app
 	handler := application.NewVkEventHandler(tg, vk, downloader, db)
+
+	//web
 	router := mux.NewRouter()
 	httpapi.NewController(router, handler)
 
