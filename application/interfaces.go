@@ -18,3 +18,8 @@ type IVideoDownloader interface {
 type IHandler interface {
 	Handle(event MessageNewEvent, retryCount int, ignoreIdempotencyKey bool) (*string, error)
 }
+
+type IIdempotencyRepo interface {
+	AddIdempotencyKey(key string) error
+	HasIdempotencyKey(key string) (bool, error)
+}

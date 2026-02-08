@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log"
 
-	config "github.com/herobeniyoutube/vk-forwarder/config"
-	postgresql "github.com/herobeniyoutube/vk-forwarder/storage/postresql"
 	u "github.com/herobeniyoutube/vk-forwarder/utils"
 )
 
@@ -15,16 +13,15 @@ type VkEventHandler struct {
 	sender         ISender
 	callbackGetter ICallbackCodeGetter
 	downloader     IVideoDownloader
-	db             *postgresql.PostgresDb
-	config         *config.Config
+	repo           IIdempotencyRepo
 }
 
-func NewVkEventHandler(s ISender, r ICallbackCodeGetter, d IVideoDownloader, db *postgresql.PostgresDb) IHandler {
+func NewVkEventHandler(s ISender, r ICallbackCodeGetter, d IVideoDownloader, repo IIdempotencyRepo) IHandler {
 	h := &VkEventHandler{
 		sender:         s,
 		callbackGetter: r,
 		downloader:     d,
-		db:             db}
+		repo:           repo}
 
 	callbackCode, err := h.getCallbackConfirmationCode()
 	if err != nil {
@@ -55,7 +52,7 @@ func (h *VkEventHandler) Handle(event MessageNewEvent, retryCountHeader int, ign
 			res *string
 			err error
 		)
-		found, err := h.db.HasIdempotencyKey(idempotencyKey)
+		found, err := h.repo.HasIdempotencyKey(idempotencyKey)
 		if err != nil {
 			return nil, createError("error checking idempotency key", eventType, err)
 		} else if found && !ignoreIdempotencyKey {
@@ -98,7 +95,7 @@ func (h *VkEventHandler) Handle(event MessageNewEvent, retryCountHeader int, ign
 
 func (h *VkEventHandler) addIdempotencyKey(idempotencyKey string, ignoreIdempotencyKey bool, err error) {
 	if !ignoreIdempotencyKey && err == nil {
-		err = h.db.AddIdempotencyKey(idempotencyKey)
+		err = h.repo.AddIdempotencyKey(idempotencyKey)
 		if err != nil {
 			log.Printf("Error creating idempotency key: %s", err.Error())
 		}

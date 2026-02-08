@@ -8,9 +8,8 @@ import (
 )
 
 type PostgresDb struct {
+	db *gorm.DB
 }
-
-var db *gorm.DB
 
 func NewDb(connectionString string) *PostgresDb {
 	conn, err := gorm.Open(postgres.Open(connectionString))
@@ -19,7 +18,6 @@ func NewDb(connectionString string) *PostgresDb {
 		panic("Couldn't open database connection")
 	}
 
-	db = conn
 	//automigrate
-	return &PostgresDb{}
+	return &PostgresDb{db: conn}
 }

@@ -96,7 +96,7 @@ func (tg *TgService) SendBatch(locations map[string]string, downloadIds []string
 	var b *bytes.Buffer
 	var contentType *string
 
-	if downloadIds != nil || len(downloadIds) > 0 {
+	if len(downloadIds) > 0 {
 		b, contentType, err = tg.createMultipleFilesBody(downloadIds)
 		if err != nil {
 			log.Println(err.Error())
