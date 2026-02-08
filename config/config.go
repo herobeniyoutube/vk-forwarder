@@ -3,8 +3,6 @@ package config
 import (
 	"fmt"
 	"os"
-
-	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -19,8 +17,6 @@ type Config struct {
 }
 
 func NewConfig() Config {
-	godotenv.Load()
-
 	cfg := Config{
 		VkGroupToken: os.Getenv("vk_group_token"),
 		VkGroupID:    os.Getenv("vk_group_id"),

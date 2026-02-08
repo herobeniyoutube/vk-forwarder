@@ -16,7 +16,7 @@ import (
 
 func main() {
 	godotenv.Load()
-
+	//config
 	config := config.NewConfig()
 	//storage
 	db := postgresql.NewDb(config.DBConnectionString)
