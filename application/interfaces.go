@@ -1,11 +1,9 @@
 package application
 
-import httpservice "github.com/herobeniyoutube/vk-forwarder/httpFunctions"
-
 type ISender interface {
 	SendClip(downloadId string, caption *string) error
 	SendPhoto(url string, caption *string) error
-	SendBatch(locations map[string]string, downloadIds []string, caption httpservice.Caption) error
+	SendBatch(locations map[string]string, downloadIds []string, caption Caption) error
 }
 
 type ICallbackCodeGetter interface {

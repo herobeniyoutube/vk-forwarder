@@ -6,8 +6,8 @@ import (
 
 	"github.com/herobeniyoutube/vk-forwarder/application"
 	"github.com/herobeniyoutube/vk-forwarder/config"
-	"github.com/herobeniyoutube/vk-forwarder/httpFunctions"
 	"github.com/herobeniyoutube/vk-forwarder/httpapi"
+	"github.com/herobeniyoutube/vk-forwarder/infrastructure"
 	postgresql "github.com/herobeniyoutube/vk-forwarder/storage/postresql"
 
 	"github.com/gorilla/mux"
@@ -23,8 +23,8 @@ func main() {
 
 	//app
 	downloader := application.NewVideoDownloader()
-	tg := httpservice.NewTgService(config)
-	vk := httpservice.NewVkService(config)
+	tg := infrastructure.NewTgService(config)
+	vk := infrastructure.NewVkService(config)
 
 	//web
 	handler := application.NewVkEventHandler(tg, vk, downloader, db)

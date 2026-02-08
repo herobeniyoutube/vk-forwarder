@@ -43,3 +43,9 @@ type Message struct {
 	PeerId      int64        `json:"peer_id"`
 	Text        string       `json:"text"`
 }
+
+type Caption struct {
+	UserMessage string
+	GroupName   string
+	Text        string
+}

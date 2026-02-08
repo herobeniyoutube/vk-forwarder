@@ -5,13 +5,12 @@ import (
 	"log"
 
 	config "github.com/herobeniyoutube/vk-forwarder/config"
-	httpservice "github.com/herobeniyoutube/vk-forwarder/httpFunctions"
 	postgresql "github.com/herobeniyoutube/vk-forwarder/storage/postresql"
 	u "github.com/herobeniyoutube/vk-forwarder/utils"
 )
 
 type VkEventHandler struct {
-	callbackCode         string
+	callbackCode string
 	//services:
 	sender         ISender
 	callbackGetter ICallbackCodeGetter
@@ -151,7 +150,7 @@ func (h *VkEventHandler) sendPhotoHandler(m Message) (*string, error) {
 func (h *VkEventHandler) sendBatchHandler(m Message, eventType string, groupId int64) (*string, error) {
 	downloadIds, locations := h.formMediaContent(m.Attachments, eventType, groupId)
 
-	err := h.sender.SendBatch(locations, downloadIds, httpservice.Caption{Text: m.Text})
+	err := h.sender.SendBatch(locations, downloadIds, Caption{Text: m.Text})
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +171,7 @@ func (h *VkEventHandler) sendWallPostHandler(m Message, eventType string, groupI
 	groupName := w.From.Name
 	wallText := w.Text
 
-	text := httpservice.Caption{GroupName: groupName, UserMessage: m.Text, Text: wallText}
+	text := Caption{GroupName: groupName, UserMessage: m.Text, Text: wallText}
 
 	downloadIds, locations := h.formMediaContent(a, eventType, groupId)
 

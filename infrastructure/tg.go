@@ -1,17 +1,19 @@
-package httpservice
+package infrastructure
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/herobeniyoutube/vk-forwarder/config"
-	u "github.com/herobeniyoutube/vk-forwarder/utils"
 	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/herobeniyoutube/vk-forwarder/application"
+	"github.com/herobeniyoutube/vk-forwarder/config"
+	u "github.com/herobeniyoutube/vk-forwarder/utils"
 )
 
 type TgService struct {
@@ -24,12 +26,6 @@ type Media struct {
 	Caption string `json:"caption,omitempty"`
 	Type    string `json:"type"`
 	Media   string `json:"media"`
-}
-
-type Caption struct {
-	UserMessage string
-	GroupName   string
-	Text        string
 }
 
 func NewTgService(config config.Config) *TgService {
@@ -83,7 +79,7 @@ func (tg *TgService) SendPhoto(url string, caption *string) error {
 	return nil
 }
 
-func (tg *TgService) SendBatch(locations map[string]string, downloadIds []string, caption Caption) error {
+func (tg *TgService) SendBatch(locations map[string]string, downloadIds []string, caption application.Caption) error {
 
 	text := fmt.Sprintf("От: %s\n%s", caption.GroupName, caption.Text)
 	if caption.UserMessage != "" {
