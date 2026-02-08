@@ -196,13 +196,17 @@ func (tg *TgService) send(body io.Reader, url string, headhers map[string]string
 	}
 	defer resp.Body.Close()
 
-	respBody, _ := io.ReadAll(resp.Body)
-	log.Printf("telegram response: status=%d body=%s", resp.StatusCode, string(respBody))
+	//respBody, _ := io.ReadAll(resp.Body)
+	log.Printf("telegram response: status=%d", resp.StatusCode)
 
 	return nil
 }
 
 func createBatchMediaType(locations map[string]string, caption *string) []byte {
+	if len(locations) == 0 {
+		return []byte("[]")
+	}
+
 	mediaInputData := make([]Media, 0)
 
 	for key, value := range locations {
@@ -215,7 +219,9 @@ func createBatchMediaType(locations map[string]string, caption *string) []byte {
 		mediaInputData = append(mediaInputData, Media{"", value, location})
 	}
 
-	mediaInputData[0].Caption = *caption
+	if caption != nil {
+		mediaInputData[0].Caption = *caption
+	}
 
 	mediaJSON, err := json.Marshal(mediaInputData)
 	if err != nil {
