@@ -54,7 +54,7 @@ func (c *Controller) verificationHandler(w http.ResponseWriter, r *http.Request)
 			ignoreIdempotencyKey = b
 		}
 	}
-	response, err = c.handler.Setup(event, retryCount, ignoreIdempotencyKey).Handle()
+	response, err = c.handler.Handle(event, retryCount, ignoreIdempotencyKey)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

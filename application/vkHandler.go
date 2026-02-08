@@ -11,14 +11,6 @@ import (
 )
 
 type VkEventHandler struct {
-	groupId              int64
-	chatId               int64
-	messageId            int64
-	eventType            string
-	retryCountHeader     int
-	ignoreIdempotencyKey bool
-	idempotencyKey       string
-	text                 string
 	callbackCode         string
 	//services:
 	sender         ISender
@@ -26,8 +18,6 @@ type VkEventHandler struct {
 	downloader     IVideoDownloader
 	db             *postgresql.PostgresDb
 	config         *config.Config
-
-	payload MessageNewEvent
 }
 
 func NewVkEventHandler(s ISender, r ICallbackCodeGetter, d IVideoDownloader, db *postgresql.PostgresDb) IHandler {
@@ -47,57 +37,48 @@ func NewVkEventHandler(s ISender, r ICallbackCodeGetter, d IVideoDownloader, db 
 	return h
 }
 
-func (h *VkEventHandler) Setup(event MessageNewEvent, retryCountHeader int, ignoreIdempotencyKey bool) IHandler {
+func (h *VkEventHandler) Handle(event MessageNewEvent, retryCountHeader int, ignoreIdempotencyKey bool) (*string, error) {
+	if retryCountHeader > 1 {
+		log.Printf("Retry header value: %d", retryCountHeader)
+	}
 
 	msg := event.Object.Message
 	messageId := msg.MessageId
 	chatId := msg.PeerId
+	eventType := event.Type
+	idempotencyKey := u.BuildIdempotencyKey(chatId, messageId)
 
-	h.groupId = event.GroupID
-	h.chatId = chatId
-	h.messageId = messageId
-	h.eventType = event.Type
-	h.text = msg.Text
-	h.idempotencyKey = u.BuildIdempotencyKey(chatId, messageId)
-	h.ignoreIdempotencyKey = ignoreIdempotencyKey
-
-	return h
-}
-
-func (h *VkEventHandler) Handle() (*string, error) {
-
-	if h.retryCountHeader > 1 {
-		log.Printf("Retry header value: %d", h.retryCountHeader)
-	}
-
-	switch h.eventType {
+	switch eventType {
 	case "confirmation":
-		h.getCallbackConfirmationCode()
+		return h.getCallbackConfirmationCode()
 	case "message_new":
 		var (
 			res *string
 			err error
 		)
-		found, err := h.db.HasIdempotencyKey(h.idempotencyKey)
+		found, err := h.db.HasIdempotencyKey(idempotencyKey)
 		if err != nil {
-			return nil, createError("error checking idempotency key", h.eventType, err)
-		} else if found && !h.ignoreIdempotencyKey {
+			return nil, createError("error checking idempotency key", eventType, err)
+		} else if found && !ignoreIdempotencyKey {
 			r := "message_new processed already"
 			return &r, nil
 		}
 
-		attachments := h.payload.Object.Message.Attachments
+		attachments := msg.Attachments
+		if len(attachments) == 0 {
+			return nil, createError("attachments are empty", eventType, nil)
+		}
 		attachmentType := attachments[0].Type
 
 		if len(attachments) == 1 {
 
 			switch attachmentType {
 			case "video":
-				res, err = h.downloadVideoHandler()
+				res, err = h.downloadVideoHandler(msg, eventType, event.GroupID)
 			case "photo":
-				res, err = h.sendPhotoHandler()
+				res, err = h.sendPhotoHandler(msg)
 			case "wall":
-				res, err = h.sendWallPostHandler()
+				res, err = h.sendWallPostHandler(msg, eventType, event.GroupID)
 			default:
 
 			}
@@ -105,20 +86,20 @@ func (h *VkEventHandler) Handle() (*string, error) {
 			switch attachmentType {
 
 			default:
-				return h.sendBatchHandler()
+				return h.sendBatchHandler(msg, eventType, event.GroupID)
 			}
 		}
-		h.addIdempotencyKey(err)
+		h.addIdempotencyKey(idempotencyKey, ignoreIdempotencyKey, err)
 
 		return res, err
 
 	}
-	return nil, createError("event type not found", h.eventType, nil)
+	return nil, createError("event type not found", eventType, nil)
 }
 
-func (h *VkEventHandler) addIdempotencyKey(err error) {
-	if !h.ignoreIdempotencyKey && err == nil {
-		err = h.db.AddIdempotencyKey(h.idempotencyKey)
+func (h *VkEventHandler) addIdempotencyKey(idempotencyKey string, ignoreIdempotencyKey bool, err error) {
+	if !ignoreIdempotencyKey && err == nil {
+		err = h.db.AddIdempotencyKey(idempotencyKey)
 		if err != nil {
 			log.Printf("Error creating idempotency key: %s", err.Error())
 		}
@@ -129,21 +110,21 @@ func (h *VkEventHandler) addIdempotencyKey(err error) {
 func (h *VkEventHandler) getCallbackConfirmationCode() (*string, error) {
 	code, err := h.callbackGetter.GetCallbackConfirmation()
 	if code == nil {
-		return code, createError("confirmation code empty"+err.Error(), h.eventType, nil)
+		return code, createError("confirmation code empty"+err.Error(), "confirmation", nil)
 	}
 
 	return code, nil
 }
 
-func (h *VkEventHandler) downloadVideoHandler() (*string, error) {
-	m := h.payload.Object.Message
+func (h *VkEventHandler) downloadVideoHandler(m Message, eventType string, groupId int64) (*string, error) {
 	v := m.Attachments[0].Video
+	downloader := h.downloader.Setup(groupId)
 
-	downloadId, err := h.downloader.Download(v.Type, v.VideoId, v.OwnerId)
+	downloadId, err := downloader.Download(v.Type, v.VideoId, v.OwnerId)
 	if err != nil {
-		return nil, createError("error downloading video", h.eventType, err)
+		return nil, createError("error downloading video", eventType, err)
 	}
-	defer h.downloader.DisposeSendedVideo(*downloadId)
+	defer downloader.DisposeSendedVideo(*downloadId)
 
 	err = h.sender.SendClip(*downloadId, &m.Text)
 	if err != nil {
@@ -155,10 +136,10 @@ func (h *VkEventHandler) downloadVideoHandler() (*string, error) {
 	return &r, nil
 }
 
-func (h *VkEventHandler) sendPhotoHandler() (*string, error) {
-	photoUrl := h.payload.Object.Message.Attachments[0].Photo.OrigPhoto.Url
+func (h *VkEventHandler) sendPhotoHandler(m Message) (*string, error) {
+	photoUrl := m.Attachments[0].Photo.OrigPhoto.Url
 
-	err := h.sender.SendPhoto(photoUrl, &h.text)
+	err := h.sender.SendPhoto(photoUrl, &m.Text)
 	if err != nil {
 		return nil, err
 	}
@@ -168,14 +149,8 @@ func (h *VkEventHandler) sendPhotoHandler() (*string, error) {
 	return &r, nil
 }
 
-func (h *VkEventHandler) sendBatchHandler() (*string, error) {
-	a := h.payload.Object.Message.Attachments
-	m := h.payload.Object.Message
-
-	downloadIds := make([]string, 0)
-	locations := make(map[string]string, 0)
-
-	h.formMediaContent(a, downloadIds, locations)
+func (h *VkEventHandler) sendBatchHandler(m Message, eventType string, groupId int64) (*string, error) {
+	downloadIds, locations := h.formMediaContent(m.Attachments, eventType, groupId)
 
 	err := h.sender.SendBatch(locations, downloadIds, httpservice.Caption{Text: m.Text})
 	if err != nil {
@@ -184,28 +159,24 @@ func (h *VkEventHandler) sendBatchHandler() (*string, error) {
 
 	r := "batch sended"
 
-	d := VideoDownloader{h.groupId}
+	downloader := h.downloader.Setup(groupId)
 	for _, val := range downloadIds {
-		d.DisposeSendedVideo(val)
+		downloader.DisposeSendedVideo(val)
 	}
 
 	return &r, nil
 }
 
-func (h *VkEventHandler) sendWallPostHandler() (*string, error) {
-	w := h.payload.Object.Message.Attachments[0].Wall
+func (h *VkEventHandler) sendWallPostHandler(m Message, eventType string, groupId int64) (*string, error) {
+	w := m.Attachments[0].Wall
 
 	a := w.Attachments
-	userMessage := h.payload.Object.Message
 	groupName := w.From.Name
 	wallText := w.Text
 
-	text := httpservice.Caption{GroupName: groupName, UserMessage: userMessage.Text, Text: wallText}
+	text := httpservice.Caption{GroupName: groupName, UserMessage: m.Text, Text: wallText}
 
-	downloadIds := make([]string, 0)
-	locations := make(map[string]string, 0)
-
-	h.formMediaContent(a, downloadIds, locations)
+	downloadIds, locations := h.formMediaContent(a, eventType, groupId)
 
 	err := h.sender.SendBatch(locations, downloadIds, text)
 	if err != nil {
@@ -217,13 +188,17 @@ func (h *VkEventHandler) sendWallPostHandler() (*string, error) {
 	return &r, nil
 }
 
-func (h *VkEventHandler) formMediaContent(a []Attachment, downloadIds []string, locations map[string]string) {
+func (h *VkEventHandler) formMediaContent(a []Attachment, eventType string, groupId int64) ([]string, map[string]string) {
+	downloadIds := make([]string, 0)
+	locations := make(map[string]string, 0)
+	downloader := h.downloader.Setup(groupId)
+
 	for _, value := range a {
 		if value.Type == "video" {
 
-			downloadId, err := h.downloader.Download(value.Type, value.Video.VideoId, value.Video.OwnerId)
+			downloadId, err := downloader.Download(value.Type, value.Video.VideoId, value.Video.OwnerId)
 			if err != nil {
-				log.Println(createError("error downloading video", h.eventType, err).Error())
+				log.Println(createError("error downloading video", eventType, err).Error())
 				continue
 			}
 
@@ -234,6 +209,8 @@ func (h *VkEventHandler) formMediaContent(a []Attachment, downloadIds []string, 
 			locations[url] = "photo"
 		}
 	}
+
+	return downloadIds, locations
 }
 
 // probably could use this as something like generic in utils

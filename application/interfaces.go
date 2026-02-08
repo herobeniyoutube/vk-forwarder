@@ -19,6 +19,5 @@ type IVideoDownloader interface {
 }
 
 type IHandler interface {
-	Handle() (*string, error)
-	Setup(event MessageNewEvent, retryCount int, ignoreIdempotencyKey bool) IHandler
+	Handle(event MessageNewEvent, retryCount int, ignoreIdempotencyKey bool) (*string, error)
 }
