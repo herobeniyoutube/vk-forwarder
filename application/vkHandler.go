@@ -118,13 +118,12 @@ func (h *VkEventHandler) getCallbackConfirmationCode() (*string, error) {
 
 func (h *VkEventHandler) downloadVideoHandler(m Message, eventType string, groupId int64) (*string, error) {
 	v := m.Attachments[0].Video
-	downloader := h.downloader.Setup(groupId)
 
-	downloadId, err := downloader.Download(v.Type, v.VideoId, v.OwnerId)
+	downloadId, err := h.downloader.Download(groupId, v.Type, v.VideoId, v.OwnerId)
 	if err != nil {
 		return nil, createError("error downloading video", eventType, err)
 	}
-	defer downloader.DisposeSendedVideo(*downloadId)
+	defer h.downloader.DisposeSendedVideo(groupId, *downloadId)
 
 	err = h.sender.SendClip(*downloadId, &m.Text)
 	if err != nil {
@@ -159,9 +158,8 @@ func (h *VkEventHandler) sendBatchHandler(m Message, eventType string, groupId i
 
 	r := "batch sended"
 
-	downloader := h.downloader.Setup(groupId)
 	for _, val := range downloadIds {
-		downloader.DisposeSendedVideo(val)
+		h.downloader.DisposeSendedVideo(groupId, val)
 	}
 
 	return &r, nil
@@ -191,12 +189,11 @@ func (h *VkEventHandler) sendWallPostHandler(m Message, eventType string, groupI
 func (h *VkEventHandler) formMediaContent(a []Attachment, eventType string, groupId int64) ([]string, map[string]string) {
 	downloadIds := make([]string, 0)
 	locations := make(map[string]string, 0)
-	downloader := h.downloader.Setup(groupId)
 
 	for _, value := range a {
 		if value.Type == "video" {
 
-			downloadId, err := downloader.Download(value.Type, value.Video.VideoId, value.Video.OwnerId)
+			downloadId, err := h.downloader.Download(groupId, value.Type, value.Video.VideoId, value.Video.OwnerId)
 			if err != nil {
 				log.Println(createError("error downloading video", eventType, err).Error())
 				continue

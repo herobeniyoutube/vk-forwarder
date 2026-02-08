@@ -13,20 +13,13 @@ import (
 	u "github.com/herobeniyoutube/vk-forwarder/utils"
 )
 
-type VideoDownloader struct {
-	GroupId int64
-}
+type VideoDownloader struct{}
 
 func NewVideoDownloader() *VideoDownloader {
 	return &VideoDownloader{}
 }
 
-func (d *VideoDownloader) Setup(groupId int64) IVideoDownloader {
-	d.GroupId = groupId
-	return d
-}
-
-func (d *VideoDownloader) Download(videoType string, videoId int, ownerId int) (*string, error) {
+func (d *VideoDownloader) Download(groupId int64, videoType string, videoId int, ownerId int) (*string, error) {
 	var err error
 
 	downloadLink, err := createLink(videoType, videoId, ownerId)
@@ -37,7 +30,7 @@ func (d *VideoDownloader) Download(videoType string, videoId int, ownerId int) (
 	}
 
 	downloadId := uuid.NewString()
-	filePath := u.GetVideoPath(d.GroupId, downloadId)
+	filePath := u.GetVideoPath(groupId, downloadId)
 	if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
 		log.Printf("Couldn't create tmp dir: %s", err.Error())
 		return nil, err
@@ -62,13 +55,13 @@ func (d *VideoDownloader) Download(videoType string, videoId int, ownerId int) (
 	}
 
 	//log.Printf("File downloaded: %s", bufferOut.String())
-	log.Printf("Downloaded video %s from groupId %d", downloadId, d.GroupId)
+	log.Printf("Downloaded video %s from groupId %d", downloadId, groupId)
 
 	return &downloadId, nil
 }
 
-func (d *VideoDownloader) DisposeSendedVideo(downloadId string) error {
-	err := os.Remove(u.GetVideoPath(d.GroupId, downloadId))
+func (d *VideoDownloader) DisposeSendedVideo(groupId int64, downloadId string) error {
+	err := os.Remove(u.GetVideoPath(groupId, downloadId))
 	if err != nil {
 		return err
 	}

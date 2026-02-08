@@ -13,9 +13,8 @@ type ICallbackCodeGetter interface {
 }
 
 type IVideoDownloader interface {
-	Setup(groupId int64) IVideoDownloader
-	Download(videoType string, videoId int, ownerId int) (*string, error)
-	DisposeSendedVideo(downloadId string) error
+	Download(groupId int64, videoType string, videoId int, ownerId int) (*string, error)
+	DisposeSendedVideo(groupId int64, downloadId string) error
 }
 
 type IHandler interface {
