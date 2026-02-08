@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  vk-forwarder:
+    build: .
+    container_name: vk-forwarder
+    ports:
+      - "14888:14888"
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - ./tmp:/app/tmp

@@ -1,0 +1,28 @@
+.env
+.env.*
+
+# Go build/test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace/cache
+go.work
+go.work.sum
+
+# Debug binaries
+__debug_bin*
+
+# Local temp/assets
+tmp/
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store

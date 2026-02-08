@@ -1,0 +1,24 @@
+package application
+
+import httpservice "github.com/herobeniyoutube/vk-forwarder/httpFunctions"
+
+type ISender interface {
+	SendClip(downloadId string, caption *string) error
+	SendPhoto(url string, caption *string) error
+	SendBatch(locations map[string]string, downloadIds []string, caption httpservice.Caption) error
+}
+
+type ICallbackCodeGetter interface {
+	GetCallbackConfirmation() (*string, error)
+}
+
+type IVideoDownloader interface {
+	Setup(groupId int64) IVideoDownloader
+	Download(videoType string, videoId int, ownerId int) (*string, error)
+	DisposeSendedVideo(downloadId string) error
+}
+
+type IHandler interface {
+	Handle() (*string, error)
+	Setup(event MessageNewEvent, retryCount int, ignoreIdempotencyKey bool) IHandler
+}

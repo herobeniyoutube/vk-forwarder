@@ -1,0 +1,16 @@
+
+services:
+  vk-forwarder:
+    build:
+      context: .
+      dockerfile: Dockerfile.debug
+    container_name: vk-forwarder-debug
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./tmp:/app/tmp
+    env_file:
+      - .env
+    ports:
+      - "14888:14888"
+      - "40000:40000"
