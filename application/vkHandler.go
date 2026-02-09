@@ -49,18 +49,25 @@ func (h *VkEventHandler) Handle(event MessageNewEvent, retryCountHeader int, ign
 	case "confirmation":
 		return h.getCallbackConfirmationCode()
 	case "message_new":
-		var res *string
-		_, err := h.repo.AddOrUpdateIdempotencyKey(idempotencyKey, statuses.Processing)
-		if err != nil {
-			if err, ok := err.(ProcessStatusRestrictions); ok {
-				switch err.Status {
-				case statuses.Processing:
-					s := string(statuses.Processing)
-					return &s, nil
-				case statuses.Done:
-					s := err.Error()
-					return &s, nil
+		var (
+			res *string
+			err error
+		)
+
+		if !ignoreIdempotencyKey {
+			_, err := h.repo.AddOrUpdateIdempotencyKey(idempotencyKey, statuses.Processing)
+			if err != nil {
+				if err, ok := err.(ProcessStatusRestrictions); ok {
+					switch err.Status {
+					case statuses.Processing:
+						s := string(statuses.Processing)
+						return &s, nil
+					case statuses.Done:
+						s := err.Error()
+						return &s, nil
+					}
 				}
+				return nil, err
 			}
 		}
 
@@ -96,7 +103,19 @@ func (h *VkEventHandler) Handle(event MessageNewEvent, retryCountHeader int, ign
 				return h.sendBatchHandler(msg, eventType, event.GroupID)
 			}
 		}
-		// h.addIdempotencyKey(idempotencyKey, ignoreIdempotencyKey, err)
+
+		if !ignoreIdempotencyKey {
+			var repoErr error
+			if err != nil {
+				repoErr = h.repo.UpdateStatus(idempotencyKey, statuses.Error)
+			} else {
+				repoErr = h.repo.UpdateStatus(idempotencyKey, statuses.Done)
+
+			}
+			if repoErr != nil {
+				log.Print(repoErr.Error())
+			}
+		}
 
 		return res, err
 

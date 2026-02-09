@@ -26,4 +26,5 @@ type IHandler interface {
 type IIdempotencyRepo interface {
 	AddOrUpdateIdempotencyKey(key string, status statuses.IdempotencyStatus) (*statuses.IdempotencyStatus, error)
 	HasIdempotencyKey(key string) (bool, error)
+	UpdateStatus(key string, status statuses.IdempotencyStatus) error
 }

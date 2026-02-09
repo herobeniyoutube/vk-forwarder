@@ -25,12 +25,15 @@ func (p *PostgresDb) AddOrUpdateIdempotencyKey(key string, status statuses.Idemp
 	}
 
 	res = p.db.First(entity)
+	if res.Error != nil {
+		return nil, res.Error
+	}
 
 	if entity.Status != string(statuses.Error) {
 		return nil, defineStatusError(*entity)
 	}
 
-	res = p.db.Model(entity).Update("status", string(statuses.Processing)).Where("status = ?", string(statuses.Error))
+	res = p.db.Model(entity).Where("status = ?", string(statuses.Error)).Update("status", string(statuses.Processing))
 	if res.RowsAffected == 0 {
 		return nil, defineStatusError(*entity)
 	}
@@ -46,6 +49,10 @@ func (p *PostgresDb) HasIdempotencyKey(key string) (bool, error) {
 		return false, err
 	}
 	return count > 0, nil
+}
+
+func (p *PostgresDb) UpdateStatus(key string, status statuses.IdempotencyStatus) error {
+	return p.db.Model(domain.IdempotencyKey{}).Where("key = ? AND status = ?", key, "processing").Update("status", string(status)).Error
 }
 
 func defineStatusError(e domain.IdempotencyKey) error {
