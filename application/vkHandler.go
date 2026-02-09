@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/herobeniyoutube/vk-forwarder/domain/statuses"
 	u "github.com/herobeniyoutube/vk-forwarder/utils"
 )
 
@@ -48,17 +49,27 @@ func (h *VkEventHandler) Handle(event MessageNewEvent, retryCountHeader int, ign
 	case "confirmation":
 		return h.getCallbackConfirmationCode()
 	case "message_new":
-		var (
-			res *string
-			err error
-		)
-		found, err := h.repo.HasIdempotencyKey(idempotencyKey)
+		var res *string
+		_, err := h.repo.AddOrUpdateIdempotencyKey(idempotencyKey, statuses.Processing)
 		if err != nil {
-			return nil, createError("error checking idempotency key", eventType, err)
-		} else if found && !ignoreIdempotencyKey {
-			r := "message_new processed already"
-			return &r, nil
+			if err, ok := err.(ProcessStatusRestrictions); ok {
+				switch err.Status {
+				case statuses.Processing:
+					s := string(statuses.Processing)
+					return &s, nil
+				case statuses.Done:
+					s := err.Error()
+					return &s, nil
+				}
+			}
 		}
+
+		// if err != nil {
+		// 	return nil, createError("error checking idempotency key", eventType, err)
+		// } else if found && !ignoreIdempotencyKey {
+		// 	r := "message_new processed already"
+		// 	return &r, nil
+		// }
 
 		attachments := msg.Attachments
 		if len(attachments) == 0 {
@@ -85,7 +96,7 @@ func (h *VkEventHandler) Handle(event MessageNewEvent, retryCountHeader int, ign
 				return h.sendBatchHandler(msg, eventType, event.GroupID)
 			}
 		}
-		h.addIdempotencyKey(idempotencyKey, ignoreIdempotencyKey, err)
+		// h.addIdempotencyKey(idempotencyKey, ignoreIdempotencyKey, err)
 
 		return res, err
 
@@ -93,15 +104,15 @@ func (h *VkEventHandler) Handle(event MessageNewEvent, retryCountHeader int, ign
 	return nil, createError("event type not found", eventType, nil)
 }
 
-func (h *VkEventHandler) addIdempotencyKey(idempotencyKey string, ignoreIdempotencyKey bool, err error) {
-	if !ignoreIdempotencyKey && err == nil {
-		err = h.repo.AddIdempotencyKey(idempotencyKey)
-		if err != nil {
-			log.Printf("Error creating idempotency key: %s", err.Error())
-		}
-	}
-	// log.Printf("Idempotency key ignored: %s", err.Error())
-}
+// func (h *VkEventHandler) addIdempotencyKey(idempotencyKey string, ignoreIdempotencyKey bool, err error) {
+// 	if !ignoreIdempotencyKey && err == nil {
+// 		err = h.repo.AddIdempotencyKey(idempotencyKey)
+// 		if err != nil {
+// 			log.Printf("Error creating idempotency key: %s", err.Error())
+// 		}
+// 	}
+// 	// log.Printf("Idempotency key ignored: %s", err.Error())
+// }
 
 func (h *VkEventHandler) getCallbackConfirmationCode() (*string, error) {
 	code, err := h.callbackGetter.GetCallbackConfirmation()

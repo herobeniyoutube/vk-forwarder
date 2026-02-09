@@ -1,5 +1,9 @@
 package application
 
+import (
+	"github.com/herobeniyoutube/vk-forwarder/domain/statuses"
+)
+
 type ISender interface {
 	SendClip(downloadId string, caption *string) error
 	SendPhoto(url string, caption *string) error
@@ -20,6 +24,6 @@ type IHandler interface {
 }
 
 type IIdempotencyRepo interface {
-	AddIdempotencyKey(key string) error
+	AddOrUpdateIdempotencyKey(key string, status statuses.IdempotencyStatus) (*statuses.IdempotencyStatus, error)
 	HasIdempotencyKey(key string) (bool, error)
 }

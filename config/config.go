@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -28,6 +29,9 @@ func NewConfig() Config {
 	}
 
 	dbUri := cfg.buildPostgresUrl()
+	if cfg.Environment == "dev" {
+		log.Println(dbUri)
+	}
 	cfg.DBConnectionString = dbUri
 
 	return cfg
